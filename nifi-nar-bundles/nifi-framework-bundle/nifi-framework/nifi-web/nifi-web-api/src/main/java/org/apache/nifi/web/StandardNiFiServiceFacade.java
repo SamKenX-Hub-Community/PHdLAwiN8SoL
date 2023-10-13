@@ -91,7 +91,9 @@ import org.apache.nifi.controller.leader.election.LeaderElectionManager;
 import org.apache.nifi.controller.repository.FlowFileEvent;
 import org.apache.nifi.controller.repository.FlowFileEventRepository;
 import org.apache.nifi.controller.repository.claim.ContentDirection;
+import org.apache.nifi.controller.serialization.VersionedReportingTaskSnapshotMapper;
 import org.apache.nifi.controller.service.ControllerServiceNode;
+import org.apache.nifi.controller.service.ControllerServiceProvider;
 import org.apache.nifi.controller.service.ControllerServiceReference;
 import org.apache.nifi.controller.service.ControllerServiceState;
 import org.apache.nifi.controller.status.ProcessGroupStatus;
@@ -99,6 +101,7 @@ import org.apache.nifi.controller.status.ProcessorStatus;
 import org.apache.nifi.controller.status.analytics.StatusAnalytics;
 import org.apache.nifi.controller.status.history.ProcessGroupStatusDescriptor;
 import org.apache.nifi.diagnostics.DiagnosticLevel;
+import org.apache.nifi.diagnostics.StorageUsage;
 import org.apache.nifi.diagnostics.SystemDiagnostics;
 import org.apache.nifi.events.BulletinFactory;
 import org.apache.nifi.expression.ExpressionLanguageScope;
@@ -113,6 +116,7 @@ import org.apache.nifi.flow.VersionedExternalFlowMetadata;
 import org.apache.nifi.flow.VersionedFlowCoordinates;
 import org.apache.nifi.flow.VersionedParameterContext;
 import org.apache.nifi.flow.VersionedProcessGroup;
+import org.apache.nifi.flow.VersionedReportingTaskSnapshot;
 import org.apache.nifi.groups.ProcessGroup;
 import org.apache.nifi.groups.ProcessGroupCounts;
 import org.apache.nifi.groups.RemoteProcessGroup;
@@ -4151,6 +4155,52 @@ public class StandardNiFiServiceFacade implements NiFiServiceFacade {
     }
 
     @Override
+    public VersionedReportingTaskSnapshot getVersionedReportingTaskSnapshot(final String reportingTaskId) {
+        final NiFiUser user = NiFiUserUtils.getNiFiUser();
+        final ReportingTaskNode reportingTaskNode = reportingTaskDAO.getReportingTask(reportingTaskId);
+        return getVersionedReportingTaskSnapshot(Collections.singleton(reportingTaskNode), user);
+    }
+
+    @Override
+    public VersionedReportingTaskSnapshot getVersionedReportingTaskSnapshot() {
+        final NiFiUser user = NiFiUserUtils.getNiFiUser();
+        final Set<ReportingTaskNode> reportingTaskNodes = reportingTaskDAO.getReportingTasks();
+        return getVersionedReportingTaskSnapshot(reportingTaskNodes, user);
+    }
+
+    private VersionedReportingTaskSnapshot getVersionedReportingTaskSnapshot(final Set<ReportingTaskNode> reportingTaskNodes, final NiFiUser user) {
+        final Set<ControllerServiceNode> serviceNodes = new HashSet<>();
+        reportingTaskNodes.forEach(reportingTaskNode -> {
+            reportingTaskNode.authorize(authorizer, RequestAction.READ, user);
+            findReferencedControllerServices(reportingTaskNode, serviceNodes, user);
+        });
+
+        final ExtensionManager extensionManager = controllerFacade.getExtensionManager();
+        final ControllerServiceProvider serviceProvider = controllerFacade.getControllerServiceProvider();
+        final VersionedReportingTaskSnapshotMapper snapshotMapper = new VersionedReportingTaskSnapshotMapper(extensionManager, serviceProvider);
+        return snapshotMapper.createMapping(reportingTaskNodes, serviceNodes);
+    }
+
+    private void findReferencedControllerServices(final ComponentNode componentNode, final Set<ControllerServiceNode> serviceNodes, final NiFiUser user) {
+        componentNode.getPropertyDescriptors().forEach(descriptor -> {
+            if (descriptor.getControllerServiceDefinition() != null) {
+                final String serviceId = componentNode.getEffectivePropertyValue(descriptor);
+                if (serviceId != null) {
+                    try {
+                        final ControllerServiceNode serviceNode = controllerServiceDAO.getControllerService(serviceId);
+                        serviceNode.authorize(authorizer, RequestAction.READ, user);
+                        if (serviceNodes.add(serviceNode)) {
+                            findReferencedControllerServices(serviceNode, serviceNodes, user);
+                        }
+                    } catch (ResourceNotFoundException e) {
+                        // ignore if the resource is not found, if the referenced service was previously deleted, it should not stop this action
+                    }
+                }
+            }
+        });
+    }
+
+    @Override
     public ControllerBulletinsEntity getControllerBulletins() {
         final NiFiUser user = NiFiUserUtils.getNiFiUser();
         final ControllerBulletinsEntity controllerBulletinsEntity = new ControllerBulletinsEntity();
@@ -6079,6 +6129,14 @@ public class StandardNiFiServiceFacade implements NiFiServiceFacade {
         nifiMetricsRegistry.setDataPoint(aggregateEvent.getBytesReceived(), "TOTAL_BYTES_RECEIVED",
                 instanceId, ROOT_PROCESS_GROUP, rootPGName, rootPGId, "");
 
+        //Add flow file repository, content repository and provenance repository usage to NiFi metrics
+        final StorageUsage flowFileRepositoryUsage = controllerFacade.getFlowFileRepositoryStorageUsage();
+        final Map<String, StorageUsage> contentRepositoryUsage = controllerFacade.getContentRepositoryStorageUsage();
+        final Map<String, StorageUsage> provenanceRepositoryUsage = controllerFacade.getProvenanceRepositoryStorageUsage();
+
+        PrometheusMetricsUtil.createStorageUsageMetrics(nifiMetricsRegistry, flowFileRepositoryUsage, contentRepositoryUsage, provenanceRepositoryUsage,
+                instanceId, ROOT_PROCESS_GROUP, rootPGName, rootPGId, "");
+
         //Add total task duration for root to the NiFi metrics registry
         // The latest aggregated status history is the last element in the list so we need the last element only
         final StatusHistoryEntity rootGPStatusHistory = getProcessGroupStatusHistory(rootPGId);
@@ -6307,7 +6365,9 @@ public class StandardNiFiServiceFacade implements NiFiServiceFacade {
             controllerFacade.getControllerServiceProvider()
         );
 
-        controllerFacade.getFlowManager().getFlowAnalyzer().analyzeProcessGroup(nonVersionedProcessGroup);
+        controllerFacade.getFlowManager().getFlowAnalyzer().ifPresent(
+            flowAnalyzer -> flowAnalyzer.analyzeProcessGroup(nonVersionedProcessGroup)
+        );
     }
 
     @Override
@@ -6408,12 +6468,16 @@ public class StandardNiFiServiceFacade implements NiFiServiceFacade {
     }
 
     private Optional<AuthorizableHolder> findAuthorizableHolder(
-        String id,
-        Function<String, AuthorizableHolder>... lookupMethods
+        final String id,
+        final Function<String, AuthorizableHolder>... lookupMethods
     ) {
         AuthorizableHolder authorizableHolder = null;
         for (Function<String, AuthorizableHolder> lookupMethod : lookupMethods) {
-            authorizableHolder = lookupMethod.apply(id);
+            try {
+                authorizableHolder = lookupMethod.apply(id);
+            } catch (ResourceNotFoundException e) {
+                // We don't know beforehand what kind of component we are looking for. Ignore if one lookup fails.
+            }
             if (authorizableHolder != null) {
                 break;
             }

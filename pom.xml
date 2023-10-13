@@ -25,6 +25,7 @@
     <modules>
         <module>nifi-commons</module>
         <module>nifi-api</module>
+        <module>nifi-bom</module>
         <module>nifi-framework-api</module>
         <module>nifi-server-api</module>
         <module>nifi-bootstrap</module>
@@ -113,17 +114,17 @@
         <org.apache.commons.codec.version>1.16.0</org.apache.commons.codec.version>
         <org.apache.commons.compress.version>1.24.0</org.apache.commons.compress.version>
         <org.apache.commons.lang3.version>3.13.0</org.apache.commons.lang3.version>
-        <org.apache.commons.net.version>3.9.0</org.apache.commons.net.version>
+        <org.apache.commons.net.version>3.10.0</org.apache.commons.net.version>
         <org.apache.commons.io.version>2.14.0</org.apache.commons.io.version>
         <org.apache.commons.text.version>1.10.0</org.apache.commons.text.version>
         <org.apache.httpcomponents.httpclient.version>4.5.14</org.apache.httpcomponents.httpclient.version>
         <org.apache.httpcomponents.httpcore.version>4.4.16</org.apache.httpcomponents.httpcore.version>
         <org.bouncycastle.version>1.76</org.bouncycastle.version>
-        <testcontainers.version>1.19.0</testcontainers.version>
+        <testcontainers.version>1.19.1</testcontainers.version>
         <org.slf4j.version>2.0.9</org.slf4j.version>
         <derby.version>10.16.1.1</derby.version>
         <ranger.version>2.4.0</ranger.version>
-        <jetty.version>10.0.16</jetty.version>
+        <jetty.version>10.0.17</jetty.version>
         <jackson.bom.version>2.15.2</jackson.bom.version>
         <avro.version>1.11.3</avro.version>
         <jaxb.runtime.version>2.3.8</jaxb.runtime.version>
@@ -142,12 +143,12 @@
         <mockito.version>5.5.0</mockito.version>
         <netty.3.version>3.10.6.Final</netty.3.version>
         <snakeyaml.version>2.2</snakeyaml.version>
-        <netty.4.version>4.1.98.Final</netty.4.version>
+        <netty.4.version>4.1.100.Final</netty.4.version>
         <spring.version>5.3.30</spring.version>
         <spring.security.version>5.8.7</spring.security.version>
         <swagger.annotations.version>1.6.11</swagger.annotations.version>
         <h2.version>2.2.224</h2.version>
-        <zookeeper.version>3.9.0</zookeeper.version>
+        <zookeeper.version>3.9.1</zookeeper.version>
         <caffeine.version>3.1.8</caffeine.version>
     </properties>
     <pluginRepositories>
@@ -628,7 +629,7 @@
             <dependency>
                 <groupId>org.xerial.snappy</groupId>
                 <artifactId>snappy-java</artifactId>
-                <version>1.1.10.4</version>
+                <version>1.1.10.5</version>
             </dependency>
             <!-- Override Log4j 2 libraries for transitive dependencies -->
             <dependency>

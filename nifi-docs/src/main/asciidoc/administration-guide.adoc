@@ -111,7 +111,7 @@ The following table lists the default ports used by NiFi and the corresponding p
 |Listener Bootstrap Port          | `nifi.listener.bootstrap.port`        | _random ephemeral_
 |==================================================================================================================================================
 
-NOTE: The ports marked with an asterisk (*) have property values that are blank by default in _nifi.properties_.  The values shown in the table are the default values for these ports when <<toolkit-guide.adoc#tls_toolkit,TLS Toolkit>> is used to generate _nifi.properties_ for a secured NiFi instance.  The default Certificate Authority Port used by <<toolkit-guide.adoc#tls_toolkit,TLS Toolkit>> is `9443`.
+NOTE: The ports marked with an asterisk (*) have property values that are blank by default in _nifi.properties_.
 
 === Embedded ZooKeeper
 The following table lists the default ports used by an <<embedded_zookeeper>> and the corresponding property in the _zookeeper.properties_ file.
@@ -278,11 +278,11 @@ NiFi provides several different configuration options for security purposes. The
 |==================================================================================================================================================
 | Property Name | Description
 |`nifi.security.keystore` | Filename of the Keystore that contains the server's private key.
-|`nifi.security.keystoreType` | The type of Keystore. Must be `PKCS12` or `JKS` or `BCFKS`.  JKS is the preferred type, BCFKS and PKCS12 files will be loaded with BouncyCastle provider.
+|`nifi.security.keystoreType` | The type of Keystore. Must be `PKCS12` or `JKS` or `BCFKS`.  PKCS12 is the preferred type, BCFKS and PKCS12 files will be loaded with BouncyCastle provider.
 |`nifi.security.keystorePasswd` | The password for the Keystore.
 |`nifi.security.keyPasswd` | The password for the certificate in the Keystore. If not set, the value of `nifi.security.keystorePasswd` will be used.
 |`nifi.security.truststore` | Filename of the Truststore that will be used to authorize those connecting to NiFi.  A secured instance with no Truststore will refuse all incoming connections.
-|`nifi.security.truststoreType` | The type of the Truststore. Must be `PKCS12` or `JKS` or `BCFKS`.  JKS is the preferred type, BCFKS and PKCS12 files will be loaded with BouncyCastle provider.
+|`nifi.security.truststoreType` | The type of the Truststore. Must be `PKCS12` or `JKS` or `BCFKS`.  PKCS12 is the preferred type, BCFKS and PKCS12 files will be loaded with BouncyCastle provider.
 |`nifi.security.truststorePasswd` | The password for the Truststore.
 |==================================================================================================================================================
 
@@ -315,16 +315,6 @@ Automatic refreshing of NiFi's web SSL context factory can be enabled using the 
 Once the `nifi.security.autoreload.enabled` property is set to `true`, any valid changes to the configured keystore and truststore will cause NiFi's SSL context factory to be reloaded, allowing clients to pick up the changes.  This is intended to allow expired certificates to be updated in the keystore and new trusted certificates to be added in the truststore, all without having to restart the NiFi server.
 
 NOTE: Changes to any of the `nifi.security.keystore*` or `nifi.security.truststore*` properties will not be picked up by the auto-refreshing logic, which assumes the passwords and store paths will remain the same.
-
-[[tls_generation_toolkit]]
-=== TLS Generation Toolkit
-
-In order to facilitate the secure setup of NiFi, you can use the `tls-toolkit` command line utility to automatically generate the required keystores, truststore, and relevant configuration files. This is especially useful for securing multiple NiFi nodes, which can be a tedious and error-prone process. For more information, see the <<toolkit-guide.adoc#tls_toolkit,TLS Toolkit>> section in the link:toolkit-guide.html[NiFi Toolkit Guide]. Related topics include:
-
-* <<toolkit-guide.adoc#wildcard_certificates,Wildcard Certificates>>
-* <<toolkit-guide.adoc#tls_operation_modes,Operation Modes: Standalone and Client/Server>>
-* <<toolkit-guide.adoc#tls_intermediate_ca,Using An Existing Intermediate Certificate Authority>>
-* <<toolkit-guide.adoc#additional_certificate_commands,Additional Certificate Commands>>
 
 [[tls_cipher_suites]]
 === TLS Cipher Suites
@@ -2261,7 +2251,7 @@ nifi.bootstrap.protection.context.mapping.ldap=ldap-.*
 This would cause both of the above to be assigned a context of `"ldap/Manager Password"` instead of `"default/Manager Password"`.
 [[admin-toolkit]]
 == NiFi Toolkit Administrative Tools
-In addition to `tls-toolkit` and `encrypt-config`, the NiFi Toolkit also contains command line utilities for administrators to support NiFi maintenance in standalone and clustered environments. These utilities include:
+In addition to `encrypt-config`, the NiFi Toolkit also contains command line utilities for administrators to support NiFi maintenance in standalone and clustered environments. These utilities include:
 
 * CLI -- The `cli` tool enables administrators to interact with NiFi and NiFi Registry instances to automate tasks such as deploying versioned flows and managing process groups and cluster nodes.
 * File Manager -- The `file-manager` tool enables administrators to backup, install or restore a NiFi installation from backup.
@@ -2896,7 +2886,6 @@ in the _$NIFI_HOME/conf/nifi.properties_ file:
 |===
 
 Whether using the default security properties or the ZooKeeper specific properties, the keystore and truststores must contain the appropriate keys and certificates for use with ZooKeeper (i.e., the keys and certificates need to align with the ZooKeeper configuration either way).
-NiFi's TLS Toolkit can be used to help generate the keystore and truststore used for ZooKeeper client/server access.
 
 After updating the above properties and starting NiFi, network communication with ZooKeeper will be secure and ZooKeeper will now use the NiFi node's certificate principal
 when authenticating access. This will be reflected in log messages like the following on the ZooKeeper server:
@@ -3327,11 +3316,7 @@ The first section of the _nifi.properties_ file is for the Core Properties. Thes
 
 |===
 |*Property*|*Description*
-|`nifi.flow.configuration.file`*|The location of the XML-based flow configuration file. The default value is `./conf/flow.xml.gz`. This is a legacy property. Older versions of NiFi used an
-XML-formatted file to store the flow configuration. However, newer versions use a JSON representation. In order to maintain backward compatibility of flows and still load flows developed using
-older versions of NiFi, upon startup, NiFi will use the `nifi.flow.configuration.json.file` first. If the file exists, it will be used. However, if it does not exist, NiFi will fall back to this
-property to determine the XML version of the file and use it.
-|`nifi.flow.configuration.json.file`*|The location of the flow configuration file (i.e., the file that contains what is currently displayed on the NiFi graph). The default value is `./conf/flow.json.gz`.
+|`nifi.flow.configuration.file`*|The location of the JSON-based flow configuration file. The default value is `./conf/flow.json.gz`.
 |`nifi.flow.configuration.archive.enabled`*|Specifies whether NiFi creates a backup copy of the flow automatically when the flow is updated. The default value is `true`.
 |`nifi.flow.configuration.archive.dir`*|The location of the archive directory where backup copies of the _flow.json_ are saved. The default value is `./conf/archive`. NiFi removes old archive files to limit disk usage based on archived file lifespan, total size, and number of files, as specified with `nifi.flow.configuration.archive.max.time`, `max.storage` and `max.count` properties respectively. If none of these limitation for archiving is specified, NiFi uses default conditions, that is `30 days` for `max.time` and `500 MB` for `max.storage`. +
 This cleanup mechanism takes into account only automatically created archived _flow.json_ files. If there are other files or directories in this archive directory, NiFi will ignore them. Automatically created archives have filename with ISO 8601 format timestamp prefix followed by `<original-filename>`. That is `<year><month><day>T<hour><minute><second>+<timezone offset>_<original filename>`. For example, `20160706T160719+0900_flow.json.gz`. NiFi checks filenames when it cleans archive directory. If you would like to keep a particular archive in this directory without worrying about NiFi deleting it, you can do so by copying it with a different filename pattern.
@@ -3385,14 +3370,13 @@ for components to persist state. See the <<state_management>> section for more i
 |====
 
 
-=== H2 Settings
+=== Database Settings
 
-The H2 Settings section defines the settings for the H2 database, which keeps track of user access and flow controller history.
+The Database Settings section defines the settings for the internal database, which tracks flow configuration history.
 
 |====
 |*Property*|*Description*
 |`nifi.database.directory`*|The location of the H2 database directory. The default value is `./database_repository`.
-|`nifi.h2.url.append`|This property specifies additional arguments to add to the connection string for the H2 database. The default value should be used and should not be changed. It is: `;LOCK_TIMEOUT=25000;WRITE_DELAY=0;AUTO_SERVER=FALSE`.
 |====
 
 [[repository-encryption-properties]]
@@ -4409,7 +4393,7 @@ If you are encrypting sensitive component properties in your dataflow via the se
 
 If the below properties point to directories inside the NiFi base installation path, you must copy the target directories to the new NiFi. Stop your existing NiFi installation before you do this.
 
-|`nifi.flow.configuration.json.file=`
+|`nifi.flow.configuration.file=`
 
 If you have retained the default value (`./conf/flow.json.gz`), copy _flow.json.gz_ from the existing to the new NiFi base install conf directory.
 
@@ -4477,7 +4461,7 @@ When a value is set for `nifi.sensitive.props.key` in _nifi.properties_, the spe
 2. Encrypts all the sensitive values with a specified new key.
 3. Updates the _nifi.properties_ and _flow.json.gz_ files or creates new versions of them.
 
-As an example, assume version 1.9.2 is the existing NiFi instance and the sensitive properties key is set to `password`. The goal is to move the 1.9.2 _flow.xml.gz_ to a 1.10.0 instance with a new sensitive properties key: `new_password`. Running the following Encrypt-Config command would read in the _flow.xml.gz_ and _nifi.properties_ files from 1.9.2 using the original sensitive properties key and write out new versions in 1.10.0 with the sensitive properties encrypted with the new password:
+As an example, assume version 1.9.2 is the existing NiFi instance and the sensitive properties key is set to `password`. The goal is to move the 1.9.2 _flow.json.gz_ to a 1.10.0 instance with a new sensitive properties key: `new_password`. Running the following Encrypt-Config command would read in the _flow.json.gz_ and _nifi.properties_ files from 1.9.2 using the original sensitive properties key and write out new versions in 1.10.0 with the sensitive properties encrypted with the new password:
 
 ```
 $ ./nifi-toolkit-1.10.0/bin/encrypt-config.sh -f /path/to/nifi/nifi-1.9.2/conf/flow.json.gz -g /path/to/nifi/nifi-1.10.0/conf/flow.json.gz -s new_password -n /path/to/nifi/nifi-1.9.2/conf/nifi
@@ -4506,7 +4490,6 @@ $ ./bin/nifi.sh set-sensitive-properties-algorithm <algorithm>
 The command reads the following flow configuration file properties from _nifi.properties_:
 
 - `nifi.flow.configuration.file`
-- `nifi.flow.configuration.json.file`
 
 The command checks for the existence of each file and updates the sensitive property values found.
 
@@ -4522,12 +4505,11 @@ The following command can be used to read an existing flow configuration and set
 $ ./bin/nifi.sh set-sensitive-properties-key <sensitivePropertiesKey>
 ```
 
-The command reads the following flow configuration file properties from _nifi.properties_:
+The command reads the following flow configuration file property from _nifi.properties_:
 
 - `nifi.flow.configuration.file`
-- `nifi.flow.configuration.json.file`
 
-The command checks for the existence of each file and updates the sensitive property values found.
+The command checks for the existence of the file file and updates the sensitive property values found.
 
 The minimum required length for a new sensitive properties key is 12 characters.
 
